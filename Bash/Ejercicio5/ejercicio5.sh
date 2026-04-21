@@ -16,9 +16,9 @@
 
 #-----------------------------<VARIABLES>-----------------------------
 archivo_cache="archivo_cache.json"
-declare -n nombres
+declare -a nombres=()
 declare -i id
-declare -c clear_cache=false
+clear_cache=false
 
 #-----------------------------<FUNCIONES>-----------------------------
 
@@ -60,7 +60,9 @@ EOF
 # Consulta API
 consultar_api() {
     local personaje="$1"
-     local url="https://rickandmortyapi.com/api/character/?name=${nombre_encoded}"
+    local nombre_encoded
+    nombre_encoded=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$personaje")
+    local url="https://rickandmortyapi.com/api/character/?name=${nombre_encoded}"
     local resultadoAPI
     resultadoAPI=$(curl -s -f "$url")
     local curl_exit_code=$?
@@ -70,15 +72,49 @@ consultar_api() {
         return 1
     fi
 
+    local api_error
+    api_error=$(echo "$resultadoAPI" | jq -r '.error' 2>/dev/null)
+    if [[ -n "$api_error" && "$api_error" != "null" ]]; then
+        echo "No se encontró ningun personaje con el nombre '$personaje': $api_error" >&2
+        return 1
+    fi
+
+
     local total=$(echo "$resultadoAPI" | jq -r '.results | length' 2>/dev/null)
     
-      if [[ -z "$total" ]] || [[ "$total" == "0" ]] || [[ "$total" == "null" ]]; then
-        echo "Error: No se encontró ningún personaje con el nombre '$nombre'." >&2
+    if [[ -z "$total" ]] || [[ "$total" == "0" ]] || [[ "$total" == "null" ]]; then
+        echo "Error: No se encontró ningún personaje con el nombre '$personaje'." >&2
         return 1
     fi
     
-    echo "$resultadoAPI" | jq '(.results)[0]'
+    echo "$resultadoAPI" | jq '.results'
 }
+
+# Guarda en caché
+guardar_cache() {
+    local nombre="$1"
+    local datos="$2"
+    local tmp
+    tmp=$(mktemp)
+    if ! jq empty "$archivo_cache" &>/dev/null; then
+        echo "{}" > "$archivo_cache"
+    fi
+
+    jq --arg nombre "$nombre" --argjson datos "$datos" \
+'. + {($nombre): $datos}' "$archivo_cache" > "$tmp" && mv "$tmp" "$archivo_cache"
+}
+
+#consultar_cache
+consultar_cache() {
+    local nombre="$1"
+    local resultado
+    resultado=$(jq -r --arg n "$nombre" '.[$n] // empty' "$archivo_cache" 2>/dev/null)
+    [[ -n "$resultado" ]] && echo "$resultado" && return 0
+    return 1
+}
+
+
+
 
 #-----------------------------<PROGRAMA>-----------------------------
 
@@ -86,40 +122,65 @@ consultar_api() {
 [[ ! -f "$archivo_cache" ]] && echo "{}" > "$archivo_cache"
 
 # Parsear parámetros
-options=$(getopt -o n:t:h --long nombre:,ttl:,help -- "$@" 2>/dev/null)
-if [[ $? -ne 0 ]]; then
-    echo 'Opciones incorrectas. Use -h para ayuda.'
-    exit 1
-fi
-
-eval set -- "$options"
-while true; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         -n|--nombre)
+            if [[ -z "$2" || "$2" == -* ]]; then
+                echo "Error: -n requiere un valor." >&2; exit 1
+            fi
             IFS=',' read -r -a nombres <<< "$2"
-            shift 2;;
+            shift 2 ;;
+        -i|--id)
+            if [[ -z "$2" || "$2" == -* ]]; then
+                echo "Error: -i requiere un valor." >&2; exit 1
+            fi
+            IFS=',' read -r -a ids <<< "$2"
+            shift 2 ;;
+        -clear|--clear)
+            clear_cache=true
+            shift ;;
         -h|--help)
-            ayuda; exit 0;;
-        --)
-            shift; break;;
+            ayuda; exit 0 ;;
         *)
-            echo "Error en parámetros"; exit 1;;
+            echo "Error: Opción desconocida '$1'. Use -h para ayuda." >&2
+            exit 1 ;;
     esac
 done
 
 # Validaciones
+if [[ "$clear_cache" == true ]]; then
+    if [[ ${#nombres[@]} -gt 0 ]] || [[ ${#ids[@]} -gt 0 ]]; then
+        echo "Error: -clear no puede combinarse con -n o -i." >&2
+        exit 1
+    fi
+    if [[ -f "$archivo_cache" ]]; then
+        rm "$archivo_cache"
+        echo "Caché eliminado: $(realpath "$archivo_cache" 2>/dev/null || echo "$archivo_cache")"
+    else
+        echo "No existe archivo de caché."
+    fi
+    exit 0
+fi
+
+
 if [[ ${#nombres[@]} -eq 0 ]]; then
-    echo "Error: Debe ingresar al menos un país con -n" >&2
+    echo "Error: Debe ingresar al menos un personaje con -n" >&2
     exit 1
 fi
 
+
+
+
+#main
+
 for nombre in "${nombres[@]}"; do
-    nombre=$(echo "$nombre" | xargs)  
+    nombre=$(echo "$nombre" | xargs)
 
     if ! [[ "$nombre" =~ ^[a-zA-ZñÑáéíóúÁÉÍÓÚ[:space:]-]+$ ]]; then
-        echo "Error: El nombre del país '$nombre' solo puede contener letras y espacios." >&2
+        echo "Error: El nombre del personaje '$nombre' solo puede contener letras y espacios." >&2
         continue
     fi
+
  # Consultar cache
     if resultado=$(consultar_cache "$nombre"); then
         echo "Datos desde caché:"
@@ -133,14 +194,15 @@ for nombre in "${nombres[@]}"; do
     fi
 
   # Extraigo los campos y los imprimo
-    id=$(echo "$resultado" | jq -r '.id')
-    nombre=$(echo "$resultado" | jq -r '.name')
-    status=$(echo "$resultado" | jq -r '.status')
-    species=$(echo "$resultado" | jq -r '.species')
-    gender=$(echo "$resultado" | jq -r '.gender')
-    origin=$(echo "$resultado" | jq -r '.origin.name')
-    location=$(echo "$resultado" | jq -r '.location.name')
-    episodes=$(echo "$resultado" | jq -r '.episode | length')
+
+    id=$(echo "$resultado" | jq -r '.[0].id')
+    nombre=$(echo "$resultado" | jq -r '.[0].name')
+    status=$(echo "$resultado" | jq -r '.[0].status')
+    species=$(echo "$resultado" | jq -r '.[0].species')
+    gender=$(echo "$resultado" | jq -r '.[0].gender')
+    origin=$(echo "$resultado" | jq -r '.[0].origin.name')
+    location=$(echo "$resultado" | jq -r '.[0].location.name')
+    episodes=$(echo "$resultado" | jq -r '.[0].episode | length')
 
     echo "  Nombre: $nombre"
     echo "  ID: $id"
@@ -150,4 +212,5 @@ for nombre in "${nombres[@]}"; do
     echo "  Origin: $origin"
     echo "  Location: $location"
     echo "  Episodes: $episodes"
+    
 done
