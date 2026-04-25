@@ -42,41 +42,29 @@ Si se indico ruta de salida se muestra mensaje indicando que se genero correctam
 #>
 
 
+########################## Obtencion y control de parametros #########################
 param(
-    [Parameter(Mandatory=$true)] [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        if (-not (Test-Path $_ -PathType Leaf)) {
+            throw "El archivo indicado no existe o no es un archivo válido."
+        }
+        if ((Get-Item $_).Length -eq 0) {
+            throw "El archivo indicado está vacío."
+        }
+        return $true
+    })]
     [string]$archivo,
 
-    [Parameter(Mandatory=$false)] [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory=$false)][ValidateNotNullOrEmpty()]
+    [ValidateScript({
+        if (-not (Test-Path $_ -PathType Container)) {
+            throw "El directorio de salida indicado no existe."
+        }
+        return $true
+    })]
     [string]$salida
-
 )
-
-########################## Control de parametros #########################
-#validar archivo existe
-if (-not (Test-Path $archivo -PathType Leaf)) {
-    Write-Host "Error: El archivo '$archivo' no existe o no es un archivo válido."
-    exit 1 
-}
-
-#validar archivo no este vacio
-if ((Get-Item $archivo).Length -eq 0) {
-    Write-Host "Error: El archivo '$archivo' está vacío."
-    exit 1 
-}
-
-# Validar salida solo si fue informada
-if ($salida) {
-    if (-not (Test-Path $salida -PathType Container)) {
-        Write-Host "Error: El directorio de salida '$salida' no existe."
-        exit 1
-    }
-
-    if (-not (Test-Path $salida -IsValid)) {
-        Write-Host "Error: Ruta de salida inválida."
-        exit 1
-    }
-}
-
 
 ######################### Funciones #########################
 function Normalizar-Espacios {
