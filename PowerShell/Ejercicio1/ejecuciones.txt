@@ -1,0 +1,74 @@
+1) suma sin filtro
+.\ejercicio_1.ps1 -archivo "censos.csv" -sumar "Poblacion"
+resultado esperado: La suma del campo 'Poblacion' es: 6500
+
+ 
+2) conteo sin filtro
+.\ejercicio_1.ps1 -archivo "censos.csv" -contar
+resultado esperado: La cantidad de registros es: 5
+
+
+3) suma con filtro
+.\ejercicio_1.ps1 -archivo "censos.csv" -filtro "Provincia" -buscar "Cordoba" -sumar "Poblacion"
+resultado esperado: La suma del campo 'Poblacion' filtrando por 'Provincia=Cordoba' es: 1000
+
+
+4) suma con filtro (patron parcial para probar el like)
+.\ejercicio_1.ps1 -archivo "censos.csv" -filtro "Provincia" -buscar "Bue" -sumar "Poblacion"
+resultado esperado: La suma del campo "Poblacion" filtrando por "Provincia=Bue" es: 2000
+
+
+5) conteo con filtro
+.\ejercicio_1.ps1 -archivo "censos.csv" -filtro "Pais" -buscar "Chile" -contar
+resultado esperado: La cantidad de registros filtrando por 'Pais=Chile' es: 2
+
+
+6) filtro que no encuentra nada
+.\ejercicio_1.ps1 -archivo "censos.csv" -filtro "Provincia" -buscar "Salta" -contar
+resultado esperado: La cantidad de registros filtrando por "Provincia=Salta" es: 0
+
+
+7) ERROR: CAMPO SUMAR INEXISTENTE
+.\ejercicio_1.ps1 -archivo "censos.csv" -sumar "Edad"
+resultado esperado: Error: El campo 'Edad' no existe en el archivo.
+
+
+8)ERROR: CAMPO FILTRO INEXISTENTE
+.\ejercicio_1.ps1 -archivo "censos.csv" -filtro "Ciudad" -buscar "Cordoba" -contar
+Error: El campo 'Ciudad' no existe en el archivo.
+
+
+9) ERROR: archivo inexistente
+.\ejercicio_1.ps1 -archivo "noexiste.csv" -contar
+resultado esperado: Error: El archivo 'noexiste.csv' no existe o no es un archivo válido.
+
+
+10) ERROR: archivo vacio
+.\ejercicio_1.ps1 -archivo "vacio.csv" -contar
+resultado esperado: Error: El archivo 'vacio.csv' está vacío.
+
+
+
+11)Error: archivo con solo cabecera
+.\ejercicio_1.ps1 -archivo "censos_solo_cabecera.csv" -contar
+resultado esperado: Error: El archivo no contiene registros para procesar.
+
+
+12) Error: buscar sin filtro
+.\ejercicio_1.ps1 -archivo "censos.csv" -buscar "Cordoba" -contar
+Error: Si se indica un patrón de búsqueda, también debe indicar un campo para filtrar.
+
+
+13)Error: sumar y contar juntos
+.\ejercicio_1.ps1 -archivo "censos.csv" -sumar "Poblacion" -contar
+resultado esperado:Solo se permite una funcionalidad sumar o contar por ejecución.
+
+14)Error: no indicar ninguna operación
+.\ejercicio_1.ps1 -archivo "censos.csv"
+resultado esperado:Error: Se debe indicar por lo menos una funcionalidad: contar o sumar.
+
+15)Error: campo a sumar no numérico
+.\ejercicio_1.ps1 -archivo "censos_error_no_numerico.csv" -sumar "Poblacion"
+resultado esperado: Error: El campo 'Poblacion' contiene valores no numéricos.
+
+
