@@ -1,0 +1,11 @@
+mostrando en pantalla 
+
+./ejercicio_2.sh -a lotes/prueba1.txt
+./ejercicio_2.sh -a lotes/prueba2.txt
+./ejercicio_2.sh -a lotes/prueba3.txt
+
+
+generandolo en una ruta
+./ejercicio_2.sh -a lotes/prueba1.txt -s ./salida
+./ejercicio_2.sh -a lotes/prueba2.txt -s ./salida
+./ejercicio_2.sh -a lotes/prueba3.txt -s ./salida
