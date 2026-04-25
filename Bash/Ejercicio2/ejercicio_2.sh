@@ -9,7 +9,7 @@
 #                                                      
 
 
-set -e #si un comando falla, el script se detiene
+set -Ee #si un comando falla, el script se detiene
 set -o pipefail #si falla un pipeline, el script se detiene
 
 trap 'echo "Error: ocurrió un problema durante la ejecución del script." ; exit 1' ERR
@@ -204,7 +204,8 @@ normalizar()
         > "$ruta_salida"
         echo "El archivo '$nuevo_nombre' se genero en $DIRECTORIO_SALIDA"
         fi
-
+    
+    #false descomentar para probar trap
 
     while IFS= read -r linea
     do
