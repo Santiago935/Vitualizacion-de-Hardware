@@ -49,35 +49,36 @@ Nombre del campo para la operación de suma.
 Se muestra el resultado por pantalla
 #>
 
+########################## Obtencion y control de parametros #########################
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)] [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory=$true)]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript(
+        { Test-Path $_ -PathType Leaf },
+        ErrorMessage = "Error: El archivo '{0}' no existe o no es un archivo válido."
+    )]
+    [ValidateScript(
+        { (Get-Item $_).Length -gt 0 },
+        ErrorMessage = "Error: El archivo '{0}' está vacío."
+    )]
     [string]$archivo,
 
-    [Parameter(Mandatory=$false)] [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$filtro,
 
-    [Parameter(Mandatory=$false)] [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$buscar,
 
     [Parameter(Mandatory=$false)]
     [switch]$contar,
 
-    [Parameter(Mandatory=$false)] [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$sumar
 )
-
-########################## Control de parametros #########################
-#validar archivo existe
-if (-not (Test-Path $archivo -PathType Leaf)) {
-    Write-Host "Error: El archivo '$archivo' no existe o no es un archivo válido."
-    exit 1 
-}
-
-#validar archivo no este vacio
-if ((Get-Item $archivo).Length -eq 0) {
-    Write-Host "Error: El archivo '$archivo' está vacío."
-    exit 1 
-}
 
 #validar parametros filtro y busqueda
 if ($filtro -and -not $buscar) {
@@ -100,6 +101,7 @@ if (-not $sumar -and -not $contar) {
     Write-Host "Error: Se debe indicar por lo menos una funcionalidad: contar o sumar."
     exit 1 
 }
+
 
 ######################### Funciones #########################
 function procesar {
