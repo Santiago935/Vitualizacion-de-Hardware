@@ -8,6 +8,12 @@
 #       ,S                                  11111111    #
 #                                                      
 
+
+set -e #si un comando falla, el script se detiene
+set -o pipefail #si falla un pipeline, el script se detiene
+
+trap 'echo "Error: ocurrió un problema durante la ejecución del script." ; exit 1' ERR
+
 ######################### Declaracion de variables #########################
 # Variables en donde se van a almacenar los parametros de entrada
 ARCHIVO_ENTRADA="";
