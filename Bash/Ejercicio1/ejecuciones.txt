@@ -1,0 +1,58 @@
+1) suma sin filtro
+./ejercicio_1.sh -a censos.csv -s Poblacion
+resultado esperado: La suma del campo "Poblacion" es: 6500
+
+ 
+2) conteo sin filtro
+./ejercicio_1.sh -a censos.csv -c
+resultado esperado: La cantidad de registros es: 5
+
+
+3) suma con filtro
+./ejercicio_1.sh -a censos.csv -f Provincia -b Cordoba -s Poblacion
+resultado esperado: La suma del campo "Poblacion" filtrando por "Provincia=Cordoba" es: 1000
+
+
+4) suma con filtro (patron parcial para probar el like)
+./ejercicio_1.sh -a censos.csv -f Provincia -b Bue -s Poblacion
+resultado esperado: La suma del campo "Poblacion" filtrando por "Provincia=Bue" es: 2000
+
+
+5) conteo con filtro
+./ejercicio_1.sh -a censos.csv -f Pais -b Chile -c
+resultado esperado: La cantidad de registros filtrando por "Pais=Chile" es: 2
+
+
+6) filtro que no encuentra nada
+./ejercicio_1.sh -a censos.csv -f Provincia -b Salta -c
+resultado esperado: La cantidad de registros filtrando por "Provincia=Salta" es: 0
+
+
+7) ERROR: CAMPO INEXISTENTE
+./ejercicio_1.sh -a censos.csv -s Edad
+resultado esperado: El campo a sumar no existe en el archivo censos.csv
+
+
+8)ERROR: VALORES NO NUMÉRICOS
+./ejercicio_1.sh -a censos2.csv -s Poblacion
+restulado esperado: ERROR: El campo "Poblacion" contiene valores no numéricos
+
+
+9)ERROR: FALTA PARÁMETRO BUSCAR
+./ejercicio_1.sh -a censos.csv -f Provincia -c
+resultado esperado: ERROR: No se ha proporcionado un patron a buscar.
+
+
+10) ERROR: USAR SUMAR Y CONTAR A LA VEZ
+./ejercicio_1.sh -a censos.csv -s Poblacion -c
+resultado esperado: ERROR: Solo se permite una funcionalidad sumar o contar por ejecución.
+
+
+11) ERROR: ARCHIVO NO EXISTE
+./ejercicio_1.sh -a inexistente.csv -c
+resultado esperado: El archivo no existe o no es válido.
+
+
+12)ERROR: ARCHIVO VACÍO
+./ejercicio_1.sh -a vacio.csv -c
+resultado esperado: El archivo esta vacio.
