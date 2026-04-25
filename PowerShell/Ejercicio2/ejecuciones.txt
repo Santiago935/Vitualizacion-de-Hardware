@@ -1,0 +1,5 @@
+por pantalla
+./ejercicio_2.ps1 -archivo lotes/prueba3.txt
+
+por archivo
+./ejercicio_2.ps1 -archivo lotes/prueba3.txt -salida salida/
