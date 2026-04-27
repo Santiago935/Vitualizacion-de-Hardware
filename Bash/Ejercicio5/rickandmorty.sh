@@ -58,7 +58,7 @@ EOF
 }
 
 # Consulta API
-consultar_api() {
+consultar_api_nombre() {
     local personaje="$1"
     local nombre_encoded
     nombre_encoded=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$personaje")
@@ -78,16 +78,30 @@ consultar_api() {
         echo "No se encontró ningun personaje con el nombre '$personaje': $api_error" >&2
         return 1
     fi
-
-
-    local total=$(echo "$resultadoAPI" | jq -r '.results | length' 2>/dev/null)
-    
-    if [[ -z "$total" ]] || [[ "$total" == "0" ]] || [[ "$total" == "null" ]]; then
-        echo "Error: No se encontró ningún personaje con el nombre '$personaje'." >&2
-        return 1
-    fi
     
     echo "$resultadoAPI" | jq '.results'
+}
+
+consultar_api_id() {
+    local id="$1"
+    local url="https://rickandmortyapi.com/api/character/$id"
+    local resultadoAPI
+    resultadoAPI=$(curl -s -f "$url")
+    local curl_exit_code=$?
+
+    if [[ $curl_exit_code -ne 0 ]] || [[ -z "$resultadoAPI" ]]; then
+        echo "Error: No se encontró ningún personaje con ID '$id'." >&2
+        return 1
+    fi
+
+    local api_error
+    api_error=$(echo "$resultadoAPI" | jq -r '.error' 2>/dev/null)
+    if [[ -n "$api_error" && "$api_error" != "null" ]]; then
+        echo "Error: $api_error" >&2
+        return 1
+    fi
+
+    echo "$resultadoAPI" | jq '[.]'
 }
 
 # Guarda en caché
@@ -136,7 +150,7 @@ while [[ $# -gt 0 ]]; do
             fi
             IFS=',' read -r -a ids <<< "$2"
             shift 2 ;;
-        -clear|--clear)
+        -c|--clear)
             clear_cache=true
             shift ;;
         -h|--help)
@@ -162,14 +176,10 @@ if [[ "$clear_cache" == true ]]; then
     exit 0
 fi
 
-
-if [[ ${#nombres[@]} -eq 0 ]]; then
-    echo "Error: Debe ingresar al menos un personaje con -n" >&2
+if [[ ${#nombres[@]} -eq 0 ]] && [[ ${#ids[@]} -eq 0 ]]; then
+    echo "Error: Debe ingresar al menos un personaje con -n o un ID con -i" >&2
     exit 1
 fi
-
-
-
 
 #main
 
@@ -186,7 +196,7 @@ for nombre in "${nombres[@]}"; do
         echo "Datos desde caché:"
     else # Consulto API
         echo "Consultando API para '$nombre'..."
-        if resultado=$(consultar_api "$nombre"); then
+        if resultado=$(consultar_api_nombre "$nombre"); then
             guardar_cache "$nombre" "$resultado"
         else
             continue
@@ -214,3 +224,47 @@ for nombre in "${nombres[@]}"; do
     echo "  Episodes: $episodes"
     
 done
+
+for id in "${ids[@]}"; do
+    id=$(echo "$id" | xargs)
+
+    if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+        echo "Error: El ID '$id' no es un número válido." >&2
+        continue
+    fi
+
+ # Consultar cache
+    if resultado=$(consultar_cache "$id"); then
+        echo "Datos desde caché:"
+    else # Consulto API
+        echo "Consultando API para '$id'..."
+        if resultado=$(consultar_api_id "$id"); then
+            guardar_cache "$id" "$resultado"
+        else
+            continue
+        fi
+    fi
+
+  # Extraigo los campos y los imprimo
+
+    id=$(echo "$resultado" | jq -r '.[0].id')
+    nombre=$(echo "$resultado" | jq -r '.[0].name')
+    status=$(echo "$resultado" | jq -r '.[0].status')
+    species=$(echo "$resultado" | jq -r '.[0].species')
+    gender=$(echo "$resultado" | jq -r '.[0].gender')
+    origin=$(echo "$resultado" | jq -r '.[0].origin.name')
+    location=$(echo "$resultado" | jq -r '.[0].location.name')
+    episodes=$(echo "$resultado" | jq -r '.[0].episode | length')
+
+    echo "  Nombre: $nombre"
+    echo "  ID: $id"
+    echo "  Status: $status"
+    echo "  Species: $species"
+    echo "  Gender: $gender"
+    echo "  Origin: $origin"
+    echo "  Location: $location"
+    echo "  Episodes: $episodes"
+    
+done
+
+
