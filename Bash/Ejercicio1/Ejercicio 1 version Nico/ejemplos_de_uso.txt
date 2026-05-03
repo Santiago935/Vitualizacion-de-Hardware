@@ -1,0 +1,34 @@
+El codigo posee un lote de pruebas incluido (ejecutable con el ultimo comando aqui listado), pero si se quiere probar manualmente dejamos algunas pruebas rapidas:
+
+## Filtrar por pais, donde la coincidencia esta apuntado por el patron -b
+
+./ejercicio1.sh -a customers-100.csv -f "Country" -b "United" -c
+./ejercicio1.sh -a customers-100.csv -f "Country" -b "a" -c
+
+
+# Listar todos los resultados coincidentes del filtrado del comando anterior (para cantidad personalizada use un numero distinto de 0)
+./ejercicio1.sh -a customers-100.csv -f "Country" -b "a" -c -n 0
+
+
+# Listar el conteo total de paises de todo el archivo (test de vista de lista para evitar que se rompa por longitud la vista de tabla en consola)
+./ejercicio1.sh -a customers-100.csv -c
+
+
+# Sumar campo "Index" de todo el archivo
+./ejercicio1.sh -a customers-100.csv -s "Index"
+
+
+# Sumar campos no validos para suma
+./ejercicio1.sh -a customers-100.csv -s "Country"
+
+
+# Mostrar en el preview por consola 2 campos extra a los filtrados
+./ejercicio1.sh -a customers-100.csv -f Country -b "United States" -c -p 2
+
+
+# Mostrar en el preview por consola 3 campos extra a los filtrados usados para suma por campo "Index"
+./ejercicio1.sh -a customers-100.csv -f Country -b "United States" -s "Index" -p 3
+
+
+# Ejecutar lote de pruebas 
+./ejercicio1.sh -t
