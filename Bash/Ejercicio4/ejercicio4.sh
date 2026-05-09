@@ -112,7 +112,8 @@ main() {
         fi       
     fi
 
-    if ! touch "$LOCKFILE" 2>/dev/null || [ -d "$log" ]
+    # Creamos el archivo lockfile
+    if ! touch "$LOCKFILE" 2>/dev/null || [ -d "$LOCKFILE" ]
     then
         echo "ERROR: no se pudo crear el archivo de bloqueo de directorio.";
         exit $ERROR_ARCHIVO;
