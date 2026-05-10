@@ -182,7 +182,7 @@ function Main {
         # Guardamos en un array asociativo todos los archivos que contengan al menos una palabra clave.
         # De esta forma podemos saber si un archivo que no fue modificado y que ya tenia al menos una palabra clave sigue cumpliendo la condición,
         # sin necesidad de volver a leer el archivo.
-        $archivos_logueados = @{}
+        $archivos_registrados = @{}
         
         Get-ChildItem -Path $directorio -File | ForEach-Object {
             $archivo = $_
@@ -197,7 +197,7 @@ function Main {
             if ($contiene_palabra) {
                 $tam_archivo = $archivo.Length
                 
-                $archivos_logueados[$ruta_archivo] = $tam_archivo
+                $archivos_registrados[$ruta_archivo] = $tam_archivo
                 "$(Get-Date -Format $FORMATO_FECHA_HORA): Se empieza a loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $log -Append
             }
         }
@@ -205,11 +205,11 @@ function Main {
         $watcher = Crear-Watcher
 
         $messageData = @{
-            archivos_logueados = $archivos_logueados
-            palabras           = $palabras
-            log                = $log
-            FORMATO_FECHA_HORA = $FORMATO_FECHA_HORA
-            LOCKFILE           = $LOCKFILE
+            archivos_registrados = $archivos_registrados
+            palabras             = $palabras
+            log                  = $log
+            FORMATO_FECHA_HORA   = $FORMATO_FECHA_HORA
+            LOCKFILE             = $LOCKFILE
         }
 
         Register-ObjectEvent -InputObject $watcher -EventName "Changed" -MessageData $messageData -Action {
@@ -221,7 +221,7 @@ function Main {
             }
             
             $tam_archivo = (Get-Item $ruta_archivo).Length
-            $esta_en_array = $Event.MessageData.archivos_logueados.ContainsKey($ruta_archivo)
+            $esta_en_array = $Event.MessageData.archivos_registrados.ContainsKey($ruta_archivo)
 
             $contenido = Get-Content $ruta_archivo -Raw
             $contiene_palabra = $Event.MessageData.palabras -split "," | Where-Object { $contenido -match $_ }
@@ -232,15 +232,15 @@ function Main {
                 
                 # Si no contiene palabras clave es porque en el cambio se eliminaron y ya no tiene que registrarse más en el log
                 if (-not $contiene_palabra) {
-                    $Event.MessageData.archivos_logueados.Remove($ruta_archivo)
-                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+                    $Event.MessageData.archivos_registrados.Remove($ruta_archivo)
+                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de registrar el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
                 }
             }
             else {
                 # Como no está en el array, si contiene palabras clave es porque se agregaron en la modificación y ahora hay que registrar en el log
                 if ($contiene_palabra) {
-                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se empieza a loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
-                    $Event.MessageData.archivos_logueados[$ruta_archivo] = $tam_archivo
+                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se empieza a registrar el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+                    $Event.MessageData.archivos_registrados[$ruta_archivo] = $tam_archivo
                 }
             }
         }
@@ -248,14 +248,14 @@ function Main {
         Register-ObjectEvent -InputObject $watcher -EventName "Deleted" -MessageData $messageData -Action {
             $ruta_archivo = $Event.SourceEventArgs.FullPath
 
-            if (-not $Event.MessageData.archivos_logueados.ContainsKey($ruta_archivo)) {
+            if (-not $Event.MessageData.archivos_registrados.ContainsKey($ruta_archivo)) {
                 return
             }
 
-            $tam_archivo = $Event.MessageData.archivos_logueados[$ruta_archivo]
-            $Event.MessageData.archivos_logueados.Remove($ruta_archivo)
+            $tam_archivo = $Event.MessageData.archivos_registrados[$ruta_archivo]
+            $Event.MessageData.archivos_registrados.Remove($ruta_archivo)
             "$(Get-Date -Format $script:FORMATO_FECHA_HORA): Se eliminó el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
-            "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+            "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de registrar el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
         }
 
         Wait-Event

@@ -1,20 +1,13 @@
 #!/bin/bash
 
-# Agregamos un flag para que si no tiene el flag daemon ejecute nuevamente el script pero en segundo plano.
-# Se espera que el flag sea de uso interno y no lo utilice el usuario
-if [ "$1" != "--daemon" ]
-then
-    nohup $(realpath "$0") --daemon "$@" > /dev/null 2>&1 &
-    exit 0
-fi
-shift
-
 ######################### Variables #########################
 # Variables en donde se van a almacenar los parametros de entrada
+PARAMETROS=("$@")
 directorio="";
 palabras="";
 log="";
 kill=0;
+daemon=0;
 
 # Variables para retorno de errores (exit)
 ERROR_PARAMETROS_INVALIDOS=1;
@@ -137,61 +130,67 @@ main() {
     # Guardamos en un array asociativo todos los archivos que contengan al menos una palabra clave.
     # De esta forma podemos saber si un archivo que no fue modificado y que ya tenia al menos una palabra clave sigue cumpliendo la condición,
     # sin necesidad de volver a leer el archivo.
-    declare -A archivos_logueados;
+    declare -A archivos_registrados;
 
     for archivo in "$directorio"/*
     do
-        # Verificamos si es un archivo por si el directorio está vacío
-        if [ -f "$archivo" ] && [[ "$ruta_archivo" != "$LOCKFILE" ]] && [[ "$ruta_archivo" != "$log" ]] && archivo_tiene_palabras_clave "$archivo" "$palabras"
+        if [ -f "$archivo" ] &&
+        [[ "$(realpath "$archivo")" != "$(realpath "$LOCKFILE")" ]] &&
+        [[ "$(realpath "$archivo")" != "$(realpath "$log")" ]] &&
+        archivo_tiene_palabras_clave "$archivo" "$palabras"
         then
-            archivos_logueados["$archivo"]=$(stat -c %s "$archivo");
+            local tam_archivo=$(stat -c %s "$archivo");
+            archivos_registrados["$archivo"]=$tam_archivo;
+            echo "$(date $FORMATO_FECHA_HORA): Se empieza a registrar el archivo \"$archivo\" ($tam_archivo bytes)." >> "$log"
         fi
     done
 
+    # Usamos inotifywait para registrar las operaciones según cada evento
     inotifywait -m -e access,close_write,create,delete --format '%e %w %f' "$directorio" | while read -r evento ruta nombre_archivo
     do
         local ruta_archivo="$ruta$nombre_archivo";
-        local tam_archivo=$(stat -c %s "$ruta_archivo");
 
-        if [[ "$ruta_archivo" == "$LOCKFILE" ]] || [[ "$ruta_archivo" == "$log" ]]
+        if [[ "$(realpath "$ruta_archivo")" == "$(realpath "$LOCKFILE")" ]] || [[ "$(realpath "$ruta_archivo")" == "$(realpath "$log")" ]]
         then
             continue;
         fi
 
-        if [[ -n ${archivos_logueados["$ruta_archivo"]} ]] # Si el archivo está en el array de archivos que hay que registrar en log
+        if [[ -n ${archivos_registrados["$ruta_archivo"]} ]] # Si el archivo está en el array de archivos que hay que registrar en log
         then
+            local tam_archivo=${archivos_registrados["$ruta_archivo"]};
             case "$evento" in
                 *"CLOSE_WRITE"*)
-                    echo "$(date $FORMATO_FECHA_HORA): Se escribió el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
+                    echo "$(date $FORMATO_FECHA_HORA): Se escribió el archivo \"$ruta_archivo\" ($tam_archivo bytes)." >> "$log"
 
                     # Si el archivo fue modificado y ya no contiene más palabras clave lo quitamos del array
                     if ! archivo_tiene_palabras_clave "$ruta_archivo" "$palabras"
                     then
-                        unset archivos_logueados["$ruta_archivo"]
-                        echo "$(date $FORMATO_FECHA_HORA): Se deja de loguear el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
+                        unset archivos_registrados["$ruta_archivo"]
+                        echo "$(date $FORMATO_FECHA_HORA): Se deja de registrar el archivo \"$ruta_archivo\" ($tam_archivo bytes)." >> "$log"
                     fi
                     ;;
                 *"DELETE"*)
-                    echo "$(date $FORMATO_FECHA_HORA): Se elimino el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
+                    echo "$(date $FORMATO_FECHA_HORA): Se eliminó el archivo \"$ruta_archivo\" ($tam_archivo bytes)." >> "$log"
                     # Quitamos del array el archivo eliminado
-                    unset archivos_logueados["$ruta_archivo"]
+                    unset archivos_registrados["$ruta_archivo"]
                     ;;
                 *"ACCESS"*)
-                    echo "$(date $FORMATO_FECHA_HORA): Se leyo el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
+                    echo "$(date $FORMATO_FECHA_HORA): Se leyó el archivo \"$ruta_archivo\" ($tam_archivo bytes)." >> "$log"
                     ;;
             esac
         elif [[ $evento == *"CLOSE_WRITE"* ]] && archivo_tiene_palabras_clave "$ruta_archivo" "$palabras" # Si el archivo no estaba en el array y fue modificado revisamos si ahora sí contiene alguna palabra clave
         then
+            local tam_archivo=$(stat -c %s "$ruta_archivo");
             # Lo agregamos al array y dejamos registro en el log
-            archivos_logueados["$ruta_archivo"]=1
-            echo "$(date $FORMATO_FECHA_HORA): Se empieza a loguear el archivo \"$nombre_archivo\" ($tam_archivo bytes)" >> "$log"
+            archivos_registrados["$ruta_archivo"]=$tam_archivo
+            echo "$(date $FORMATO_FECHA_HORA): Se empieza a registrar el archivo \"$ruta_archivo\" ($tam_archivo bytes)" >> "$log"
         fi
     done
 }
 
 ########################## Parámetros #########################
 
-options=$(getopt -o d:p:l:kh --l directorio:,palabras:,log:,kill,help -- "$@" 2> /dev/null)
+options=$(getopt -o d:p:l:kh --l directorio:,palabras:,log:,kill,daemon,help -- "$@" 2> /dev/null)
 if [ "$?" != "0" ]
 then
     echo 'Opciones incorrectas';
@@ -216,6 +215,10 @@ do
             ;;
         -k | --kill)
             kill=1;
+            shift 1;
+            ;;
+        --daemon)
+            daemon=1;
             shift 1;
             ;;
         -h | --help)
@@ -285,7 +288,13 @@ else # Si no se pasa el parametro kill verificamos que se pasen todos los parám
         exit $ERROR_PARAMETRO_PALABRAS_FALTANTE;
     fi
 fi
-
+echo "$0" --daemon "${PARAMETROS[@]}"
 ########################## Ejecución #########################
+# Agregamos un flag para que si no tiene el flag daemon ejecute nuevamente el script como demonio.
+if [ "$daemon" -eq 0 ]
+then
+    nohup $(realpath "$0") --daemon "${PARAMETROS[@]}" > /dev/null 2>&1 &
+    exit 0
+fi
 
 main
