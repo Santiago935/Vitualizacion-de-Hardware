@@ -237,18 +237,18 @@ function Main {
             }
         }
 
-        Register-ObjectEvent -InputObject $watcher -EventName "Deleted" -Action {
+        Register-ObjectEvent -InputObject $watcher -EventName "Deleted" -MessageData $messageData -Action {
             $ruta_archivo = $Event.SourceEventArgs.FullPath
 
-            if (-not $script:archivos_logueados.ContainsKey($ruta_archivo)) {
+            if (-not $Event.MessageData.archivos_logueados.ContainsKey($ruta_archivo)) {
                 return
             }
             
             $nombre_archivo = $Event.SourceEventArgs.Name
 
-            $tam_archivo = $script:archivos_logueados[$ruta_archivo]
-            $script:archivos_logueados.Remove($ruta_archivo)
-            "$(Get-Date -Format $script:FORMATO_FECHA_HORA): Se elimino el archivo ""$nombre_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $script:log -Append
+            $tam_archivo = $Event.MessageData.archivos_logueados[$ruta_archivo]
+            $Event.MessageData.archivos_logueados.Remove($ruta_archivo)
+            "$(Get-Date -Format $script:FORMATO_FECHA_HORA): Se elimino el archivo ""$nombre_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
         }
 
         Wait-Event
