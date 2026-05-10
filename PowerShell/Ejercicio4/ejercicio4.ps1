@@ -124,7 +124,7 @@ function Nuevo-Archivo {
 
 function Crear-Watcher() {
     $watcher = New-Object System.IO.FileSystemWatcher
-    $watcher.Path = $directorio
+    $watcher.Path = Resolve-Path $directorio
     $watcher.IncludeSubdirectories = $false
     $watcher.EnableRaisingEvents = $true
 
@@ -147,6 +147,7 @@ function Main {
             # Como existe el proceso, si se pasó el flag kill lo finalizamos. Caso contrario no se puede continuar.
             if ($kill) {
                 Stop-Process -Id $pid_lockfile -Force
+                Remove-Item $LOCKFILE -Force -ErrorAction SilentlyContinue
                 exit 0
             }
             else {
@@ -160,6 +161,7 @@ function Main {
         }
     }
 
+    # Iniciamos como demonio
     if (-not $daemon) {
         Start-Process -FilePath pwsh -ArgumentList "-File `"$PSCommandPath`" $params" -WindowStyle Hidden
         exit 0
@@ -184,14 +186,19 @@ function Main {
         
         Get-ChildItem -Path $directorio -File | ForEach-Object {
             $archivo = $_
-            if ($archivo.FullName -eq $LOCKFILE -or $archivo.FullName -eq $log) {
+            $ruta_archivo = $archivo.FullName
+            if ($(Resolve-Path $ruta_archivo).Path -eq $(Resolve-Path $LOCKFILE).Path -or
+                $(Resolve-Path $ruta_archivo).Path -eq $(Resolve-Path $log).Path) {
                 return;
             }
-            $contenido = Get-Content $archivo.FullName -Raw
-            $contiene_palabra = $palabras -split "," | Where-Object { $contenido -match $_ }
 
+            $contenido = Get-Content $ruta_archivo -Raw
+            $contiene_palabra = $palabras -split "," | Where-Object { $contenido -match $_ }
             if ($contiene_palabra) {
-                $archivos_logueados[$archivo.FullName] = $archivo.Length
+                $tam_archivo = $archivo.Length
+                
+                $archivos_logueados[$ruta_archivo] = $tam_archivo
+                "$(Get-Date -Format $FORMATO_FECHA_HORA): Se empieza a loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $log -Append
             }
         }
         
@@ -207,12 +214,13 @@ function Main {
 
         Register-ObjectEvent -InputObject $watcher -EventName "Changed" -MessageData $messageData -Action {
             $ruta_archivo = $Event.SourceEventArgs.FullPath
-            if ($ruta_archivo -eq $EVENT.MessageData.LOCKFILE -or $ruta_archivo -eq $EVENT.MessageData.log) {
+
+            if ($(Resolve-Path $ruta_archivo).Path -eq $(Resolve-Path $EVENT.MessageData.LOCKFILE).Path -or
+                $(Resolve-Path $ruta_archivo).Path -eq $(Resolve-Path $EVENT.MessageData.log).Path) {
                 return;
             }
             
             $tam_archivo = (Get-Item $ruta_archivo).Length
-            $nombre_archivo = $Event.SourceEventArgs.Name
             $esta_en_array = $Event.MessageData.archivos_logueados.ContainsKey($ruta_archivo)
 
             $contenido = Get-Content $ruta_archivo -Raw
@@ -220,18 +228,18 @@ function Main {
 
             # Si el archivo está en el array entonces se registra en el log que fue modificado
             if ($esta_en_array) {
-                "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se escribió el archivo ""$nombre_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+                "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se escribió el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
                 
                 # Si no contiene palabras clave es porque en el cambio se eliminaron y ya no tiene que registrarse más en el log
                 if (-not $contiene_palabra) {
                     $Event.MessageData.archivos_logueados.Remove($ruta_archivo)
-                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de loguear el archivo ""$nombre_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
                 }
             }
             else {
                 # Como no está en el array, si contiene palabras clave es porque se agregaron en la modificación y ahora hay que registrar en el log
                 if ($contiene_palabra) {
-                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se empieza a loguear el archivo ""$nombre_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+                    "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se empieza a loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
                     $Event.MessageData.archivos_logueados[$ruta_archivo] = $tam_archivo
                 }
             }
@@ -243,12 +251,11 @@ function Main {
             if (-not $Event.MessageData.archivos_logueados.ContainsKey($ruta_archivo)) {
                 return
             }
-            
-            $nombre_archivo = $Event.SourceEventArgs.Name
 
             $tam_archivo = $Event.MessageData.archivos_logueados[$ruta_archivo]
             $Event.MessageData.archivos_logueados.Remove($ruta_archivo)
-            "$(Get-Date -Format $script:FORMATO_FECHA_HORA): Se elimino el archivo ""$nombre_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+            "$(Get-Date -Format $script:FORMATO_FECHA_HORA): Se eliminó el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
+            "$(Get-Date -Format $Event.MessageData.FORMATO_FECHA_HORA): Se deja de loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $Event.MessageData.log -Append
         }
 
         Wait-Event
@@ -259,9 +266,6 @@ function Main {
         }
     }
 }
-
-
-
 
 ########################## Ejecución #########################
 
