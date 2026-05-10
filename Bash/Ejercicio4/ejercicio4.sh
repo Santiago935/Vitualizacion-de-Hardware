@@ -95,9 +95,11 @@ main() {
     if [ -f "$LOCKFILE" ]
     then
         pid_lockfile=$(cat "$LOCKFILE")
+        
         # Verificamos si existe un proceso con el PID almacenado en el lockfile
         if kill -0 "$pid_lockfile" 2>/dev/null
         then
+            # Como existe el proceso, si se pasó el flag kill lo finalizamos. Caso contrario no se puede continuar.
             if [[ $kill -eq 1 ]]
             then
                 kill -- -$(ps -o pgid= "$pid_lockfile" | tr -d ' ')
@@ -142,7 +144,7 @@ main() {
         # Verificamos si es un archivo por si el directorio está vacío
         if [ -f "$archivo" ] && [[ "$ruta_archivo" != "$LOCKFILE" ]] && [[ "$ruta_archivo" != "$log" ]] && archivo_tiene_palabras_clave "$archivo" "$palabras"
         then
-            archivos_logueados["$archivo"]=1;
+            archivos_logueados["$archivo"]=$(stat -c %s "$archivo");
         fi
     done
 
@@ -156,23 +158,23 @@ main() {
             continue;
         fi
 
-        if [[ ${archivos_logueados["$ruta_archivo"]} -eq 1 ]] # Si el archivo está en el array de archivos que hay que registrar en log
+        if [[ -n ${archivos_logueados["$ruta_archivo"]} ]] # Si el archivo está en el array de archivos que hay que registrar en log
         then
             case "$evento" in
                 *"CLOSE_WRITE"*)
-                    echo "$(date $FORMATO_FECHA_HORA): Se escribio el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
+                    echo "$(date $FORMATO_FECHA_HORA): Se escribió el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
 
-                    # Si el archivo fue modificado y ya no contiene más las palabras clave lo quitamos del array
+                    # Si el archivo fue modificado y ya no contiene más palabras clave lo quitamos del array
                     if ! archivo_tiene_palabras_clave "$ruta_archivo" "$palabras"
                     then
-                        archivos_logueados["$ruta_archivo"]=0
+                        unset archivos_logueados["$ruta_archivo"]
                         echo "$(date $FORMATO_FECHA_HORA): Se deja de loguear el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
                     fi
                     ;;
                 *"DELETE"*)
                     echo "$(date $FORMATO_FECHA_HORA): Se elimino el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
                     # Quitamos del array el archivo eliminado
-                    archivos_logueados["$ruta_archivo"]=0
+                    unset archivos_logueados["$ruta_archivo"]
                     ;;
                 *"ACCESS"*)
                     echo "$(date $FORMATO_FECHA_HORA): Se leyo el archivo \"$nombre_archivo\" ($tam_archivo bytes)." >> "$log"
