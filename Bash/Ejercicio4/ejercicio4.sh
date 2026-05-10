@@ -1,5 +1,12 @@
 #!/bin/bash
 
+#   Integrantes:                                        #
+#                                                       #
+#       Chavez, Christian                   94529742    #
+#       Masino, Carlos Nicolás              42855529    #
+#       Manghi Scheck, Santiago             95054445    #
+#     
+
 ######################### Variables #########################
 # Variables en donde se van a almacenar los parametros de entrada
 PARAMETROS=("$@")

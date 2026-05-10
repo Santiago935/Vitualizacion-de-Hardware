@@ -1,9 +1,10 @@
+
 <#
 Integrantes: 
             Chavez, Christian                   94529742    
             ,Nicolas                            11111111    
             ,Fernando                           11111111    
-            ,S                                  11111111            
+            Manghi Scheck, Santiago             95054445            
 #>
 
 <#

@@ -4,8 +4,7 @@
 #                                                       #
 #       Chavez, Christian                   94529742    #
 #       Masino, Carlos Nicolás              42855529    #
-#       ,Fernando                           11111111    #
-#       ,S                                  11111111    #
+#       Manghi Scheck, Santiago             95054445    #
 #                                                      
 
 

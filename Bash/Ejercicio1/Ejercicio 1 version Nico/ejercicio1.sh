@@ -5,7 +5,7 @@
 # =============================================================================
 # Integrente 1: Masino, Carlos Nicolás — DNI: 42855529
 # Integrante 2: Chavez, Christian      — DNI: 94529742
-# Integrante 3: Apellido Nombre        — DNI: XXXXX
+# Integrante 3: Manghi Scheck, Santiago— DNI: 95054445
 # Integrante 4: Apellido Nombre        — DNI: XXXXX
 # =============================================================================
  
