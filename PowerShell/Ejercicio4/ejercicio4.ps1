@@ -32,10 +32,10 @@ Flag para inidicar que debe finalizar el demonio ejecutando en el directorio ind
 
 
 .EXAMPLE
-.\ejercicio4.ps1 --directorio "./directorio" --log ."/log.txt" --palabras password,account,unlam
+./ejercicio4.ps1 --directorio ./pruebas -log ./log.txt -palabras palabra2,palabra3
 
 .EXAMPLE
-.\ejercicio4.ps1 --directorio "./directorio" --kill
+./ejercicio4.ps1 --directorio ./pruebas --kill
 
 .OUTPUTS
 Archivo de log con las operaciones realizadas sobre los archivos monitoreados.
@@ -172,7 +172,7 @@ function Main {
         }
     }
 
-    # Iniciamos como demonio
+    # Iniciamos como demonio si no está el flag -daemon
     if (-not $daemon) {
         Start-Process -FilePath pwsh -ArgumentList "-File `"$PSCommandPath`" $params" -WindowStyle Hidden
         exit 0
@@ -209,7 +209,7 @@ function Main {
                 $tam_archivo = $archivo.Length
                 
                 $archivos_registrados[$ruta_archivo] = $tam_archivo
-                "$(Get-Date -Format $FORMATO_FECHA_HORA): Se empieza a loguear el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $log -Append
+                "$(Get-Date -Format $FORMATO_FECHA_HORA): Se empieza a registrar el archivo ""$ruta_archivo"" ($tam_archivo bytes)." | Out-File -FilePath $log -Append
             }
         }
         
