@@ -6,11 +6,11 @@
 #       Masino, Carlos Nicolás              42855529    #
 #       Mallet,Fernando Nicolás             39770041    #
 #       Manghi Scheck, Santiago             95054445    #
-#     
+#
 
 ######################### Variables #########################
 # Variables en donde se van a almacenar los parametros de entrada
-PARAMETROS=("$@")
+PARAMETROS=("$@");
 directorio="";
 palabras="";
 log="";
@@ -82,9 +82,7 @@ function manejador_fin() {
     rm -f "$LOCKFILE";
 }
 
-main() {
-    LOCKFILE="$directorio/$NOMBRE_ARCHIVO_LOCKFILE";
-
+function validaciones_lockfile_y_manejo_kill() {
     if [ ! -f "$LOCKFILE" ] && [ $kill -eq 1 ]
     then
         echo "ERROR: no hay ningún demonio ejecutando en el directorio indicado";
@@ -96,7 +94,6 @@ main() {
     if [ -f "$LOCKFILE" ]
     then
         pid_lockfile=$(cat "$LOCKFILE")
-        
         # Verificamos si existe un proceso con el PID almacenado en el lockfile
         if kill -0 "$pid_lockfile" 2>/dev/null
         then
@@ -114,6 +111,17 @@ main() {
             rm -f "$LOCKFILE"
         fi       
     fi
+}
+
+main() {
+    # Si no tiene el flag daemon ejecutamos el script como demonio.
+    # Antes hacemos las validaciones del lockfile y manejamos el caso de recibir flag kill si corresponde
+    if [ "$daemon" -eq 0 ]
+    then
+        validaciones_lockfile_y_manejo_kill
+        nohup $(realpath "$0") --daemon "${PARAMETROS[@]}" > /dev/null 2>&1 &
+        exit 0
+    fi  
 
     # Creamos el archivo lockfile
     if ! touch "$LOCKFILE" 2>/dev/null || [ -d "$LOCKFILE" ]
@@ -179,6 +187,7 @@ main() {
                     ;;
                 *"DELETE"*)
                     echo "$(date $FORMATO_FECHA_HORA): Se eliminó el archivo \"$ruta_archivo\" ($tam_archivo bytes)." >> "$log"
+                    echo "$(date $FORMATO_FECHA_HORA): Se deja de registrar el archivo \"$ruta_archivo\" ($tam_archivo bytes)." >> "$log"
                     # Quitamos del array el archivo eliminado
                     unset archivos_registrados["$ruta_archivo"]
                     ;;
@@ -211,6 +220,7 @@ do
     case "$1" in
         -d | --directorio)
             directorio="$2";
+            LOCKFILE="$directorio/$NOMBRE_ARCHIVO_LOCKFILE";
             shift 2;
             ;;
         -l | --log)
@@ -296,13 +306,7 @@ else # Si no se pasa el parametro kill verificamos que se pasen todos los parám
         exit $ERROR_PARAMETRO_PALABRAS_FALTANTE;
     fi
 fi
-echo "$0" --daemon "${PARAMETROS[@]}"
+
 ########################## Ejecución #########################
-# Agregamos un flag para que si no tiene el flag daemon ejecute nuevamente el script como demonio.
-if [ "$daemon" -eq 0 ]
-then
-    nohup $(realpath "$0") --daemon "${PARAMETROS[@]}" > /dev/null 2>&1 &
-    exit 0
-fi
 
 main
